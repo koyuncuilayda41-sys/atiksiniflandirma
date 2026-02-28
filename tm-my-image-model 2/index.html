@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cam / Plastik / Metal</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 16px; }
+    #webcam-container canvas { border: 1px solid #ddd; border-radius: 12px; }
+    .row { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; margin-top:12px; }
+    .card { border:1px solid #eee; border-radius:12px; padding:12px 14px; min-width:280px; }
+    button { padding:10px 14px; border-radius:10px; border:1px solid #ddd; background:#fafafa; cursor:pointer; }
+    .muted { color:#666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>Atık Sınıflandırma (Teachable Machine)</h2>
+  <p class="muted">Başlat’a basınca kamera açılır. %80 üstü tanıyınca konuşur.</p>
+
+  <button onclick="init()">Başlat</button>
+
+  <div class="row">
+    <div class="card" id="webcam-container"></div>
+    <div class="card">
+      <h3 style="margin-top:0;">Sonuçlar</h3>
+      <div id="label-container"></div>
+      <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
+      <div><b>Karar:</b> <span id="decision">-</span></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    // Model dosyaları BU index.html ile aynı klasörde olduğu için URL = "./"
+    const URL = "./";
+
+    let model, webcam, labelContainer, maxPredictions;
+
+    // Ses ayarları
+    const THRESHOLD = 0.80;      // %80 üstü olunca konuşsun
+    const COOLDOWN_MS = 1500;    // aynı şeyi sürekli söylemesin
+    let lastSpokenClass = null;
+    let lastSpokenTime = 0;
+
+    function speakTR(text) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "tr-TR";
+      u.rate = 1.0;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      // Webcam
+      const flip = true;
+      webcam = new tmImage.Webcam(320, 320, flip);
+      await webcam.setup();
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      // Ekrana koy
+      document.getElementById("webcam-container").innerHTML = "";
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+      labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = "";
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+      }
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+
+      // Listeyi yazdır
+      for (let i = 0; i < maxPredictions; i++) {
+        const txt = prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(1) + "%";
+        labelContainer.childNodes[i].innerHTML = txt;
+      }
+
+      // En yüksek tahmini bul
+      let best = prediction[0];
+      for (const p of prediction) {
+        if (p.probability > best.probability) best = p;
+      }
+
+      // Eşik üstüyse karar ver + konuş
+      const decisionEl = document.getElementById("decision");
+      if (best.probability >= THRESHOLD) {
+        decisionEl.textContent = best.className + " ✅";
+
+        const now = Date.now();
+        const cooldownOk = (best.className !== lastSpokenClass) || (now - lastSpokenTime > COOLDOWN_MS);
+
+        if (cooldownOk) {
+          lastSpokenClass = best.className;
+          lastSpokenTime = now;
+
+          // Burayı istersen daha tatlı cümle yaparız
+          speakTR(best.className + " tespit edildi");
+        }
+      } else {
+        decisionEl.textContent = "-";
+      }
+    }
+  </script>
+</body>
+</html>
