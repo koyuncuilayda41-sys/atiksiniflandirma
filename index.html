@@ -41,9 +41,9 @@
 
     // Ses ayarları
     const THRESHOLD = 0.80;      // %80 üstü olunca konuşsun
-    const COOLDOWN_MS = 1500;    // aynı şeyi sürekli söylemesin
     let lastSpokenClass = null;
-    let lastSpokenTime = 0;
+    let saidNotWaste = false;
+   
 
     function speakTR(text) {
       const u = new SpeechSynthesisUtterance(text);
@@ -103,34 +103,37 @@
 
       // Eşik üstüyse karar ver + konuş
       const decisionEl = document.getElementById("decision");
-      if (best.probability >= THRESHOLD) {
-        decisionEl.textContent = best.className + " ✅";
+     
 
+const cls = (best.className || "")
+  .toLowerCase()
+  .trim()
+  .replace(/\s+/g, " ");
 
-const cls = (best.className || "").toLowerCase().trim();
+if (best.probability < THRESHOLD) {
+ decisionEl.textContent = "-";
+  return;
+}
+decisionEl.textContent = best.className + " ✅";
 
-// aynısını tekrar söyleme
 if (lastSpokenClass === cls) return;
 
-// sadece bu 4 sınıfa izin ver (diğer her şeyi konuşmasın)
-const allowed = ["cam", "plastık", "metal", "atık_değıl", "atik_degil", "atık_değil"];
-const isAllowed = allowed.some(a => cls === a);
+const allowed = ["cam", "plastik", "metal", "atık_değıl", "atık_değil", "atik_degil"];
+if (!allowed.includes(cls)) return;
 
-if (!isAllowed) return;
-
-// konuş
 lastSpokenClass = cls;
 
-if (cls.includes("değ") || cls.includes("deg")) {
+const isNotWaste = cls.includes("deg") || cls.includes("değ");
+
+if (isNotWaste) {
+  if (saidNotWaste) return;  // zaten söylediyse tekrar söyleme
+  saidNotWaste = true;
   speakTR("Atık değil");
 } else {
+  saidNotWaste = false;      // başka sınıf görünce reset
   speakTR(best.className + " tespit edildi");
 }
-       
-      } else {
-        decisionEl.textContent = "-";
-        lastSpokenClass = null; //
-      }
+     
     }
   </script>
 </body>
