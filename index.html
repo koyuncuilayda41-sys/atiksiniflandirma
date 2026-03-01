@@ -105,25 +105,31 @@
       const decisionEl = document.getElementById("decision");
       if (best.probability >= THRESHOLD) {
         decisionEl.textContent = best.className + " ✅";
-        // atık_değil ise konuşma
-if (best.className.toLowerCase() === "atık_değil") {
-  return;
-}
 
-const now = Date.now();
-const cooldownOk =
-  (best.className !== lastSpokenClass) ||
-  (now - lastSpokenTime > COOLDOWN_MS);
 
-if (cooldownOk) {
-  lastSpokenClass = best.className;
-  lastSpokenTime = now;
+const cls = (best.className || "").toLowerCase().trim();
+
+// aynısını tekrar söyleme
+if (lastSpokenClass === cls) return;
+
+// sadece bu 4 sınıfa izin ver (diğer her şeyi konuşmasın)
+const allowed = ["cam", "plastık", "metal", "atık_değıl", "atik_degil", "atık_değil"];
+const isAllowed = allowed.some(a => cls === a);
+
+if (!isAllowed) return;
+
+// konuş
+lastSpokenClass = cls;
+
+if (cls.includes("değ") || cls.includes("deg")) {
+  speakTR("Atık değil");
+} else {
   speakTR(best.className + " tespit edildi");
 }
-
        
       } else {
         decisionEl.textContent = "-";
+        lastSpokenClass = null; //
       }
     }
   </script>
