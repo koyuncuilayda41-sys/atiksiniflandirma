@@ -99,21 +99,29 @@
         if (p.probability > best.probability) best = p;
       }
 
+
+
       // Eşik üstüyse karar ver + konuş
       const decisionEl = document.getElementById("decision");
       if (best.probability >= THRESHOLD) {
         decisionEl.textContent = best.className + " ✅";
+        // atık_değil ise konuşma
+if (best.className.toLowerCase() === "atık_değil") {
+  return;
+}
 
-        const now = Date.now();
-        const cooldownOk = (best.className !== lastSpokenClass) || (now - lastSpokenTime > COOLDOWN_MS);
+const now = Date.now();
+const cooldownOk =
+  (best.className !== lastSpokenClass) ||
+  (now - lastSpokenTime > COOLDOWN_MS);
 
-        if (cooldownOk) {
-          lastSpokenClass = best.className;
-          lastSpokenTime = now;
+if (cooldownOk) {
+  lastSpokenClass = best.className;
+  lastSpokenTime = now;
+  speakTR(best.className + " tespit edildi");
+}
 
-          // Burayı istersen daha tatlı cümle yaparız
-          speakTR(best.className + " tespit edildi");
-        }
+       
       } else {
         decisionEl.textContent = "-";
       }
